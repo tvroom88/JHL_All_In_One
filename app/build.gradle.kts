@@ -1,16 +1,17 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
+//    alias(libs.plugins.google.services)   // <- 추가
 }
 
 android {
     namespace = "com.aio.jhl_all_in_one"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.aio.jhl_all_in_one"
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
@@ -45,25 +46,67 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "META-INF/DEPENDENCIES"
+            excludes += "META-INF/NOTICE"
+            excludes += "META-INF/LICENSE"
+            excludes += "META-INF/LICENSE.txt"
+            excludes += "META-INF/NOTICE.txt"
         }
     }
 }
 
 dependencies {
 
+    // Core Android
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.appcompat)
+    implementation(libs.material)
+    implementation(libs.androidx.activity)
+    implementation(libs.androidx.material3)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
+
+    // Compose BOM
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
-    implementation(libs.androidx.material3)
+
+
+    debugImplementation(libs.androidx.ui.tooling)
+
+    // Compose testing
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.ui.test.junit4)
+    debugImplementation(libs.androidx.ui.test.manifest)
+
+    // Navigation
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.ui.test.junit4)
-    debugImplementation(libs.androidx.ui.tooling)
-    debugImplementation(libs.androidx.ui.test.manifest)
+    implementation(libs.androidx.navigation.compose)
+
+    configurations.configureEach {
+        resolutionStrategy {
+            force("androidx.lifecycle:lifecycle-runtime-compose:2.6.2")
+            force("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
+        }
+    }
+
+
+    // Google Sign-In
+    implementation(libs.play.services.auth)
+
+    // HTTP 클라이언트 (Gson 기반)
+    implementation(libs.google.http.client.gson)
+
+    // Google API 클라이언트
+    implementation(libs.google.api.client.android) {
+        exclude(group = "com.google.guava")
+    }
+    implementation(libs.google.api.services.sheets) {
+        exclude(group = "com.google.guava")
+    }
+
 }

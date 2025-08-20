@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.aio.jhl_all_in_one.data.AssetData
+import com.aio.jhl_all_in_one.ui.imagecapture.ImageCaptureScreen
 import com.aio.jhl_all_in_one.ui.portfolio.PortfolioScreen
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
@@ -55,7 +56,7 @@ fun MainScreen() {
         ) {
             when (selectedTab) {
                 0 -> PortfolioScreen()
-                1 -> Text("Search Screen")
+                1 -> ImageCaptureScreen()
                 2 -> Text("Profile Screen")
             }
         }

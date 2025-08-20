@@ -71,6 +71,7 @@ dependencies {
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
+    implementation(libs.androidx.exifinterface)
 
 
     debugImplementation(libs.androidx.ui.tooling)
@@ -94,6 +95,8 @@ dependencies {
         }
     }
 
+    implementation(libs.accompanist.permissions) // 최신 버전 확인
+
 
     // Google Sign-In
     implementation(libs.play.services.auth)
@@ -109,4 +112,15 @@ dependencies {
         exclude(group = "com.google.guava")
     }
 
+    // CameraX
+    implementation(libs.androidx.camera.core)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+    implementation(libs.androidx.camera.extensions)
+
+    // ImageCropper
+    implementation(libs.android.image.cropper)
+
+    implementation(libs.easycrop)
 }

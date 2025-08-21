@@ -119,8 +119,11 @@ dependencies {
     implementation(libs.androidx.camera.view)
     implementation(libs.androidx.camera.extensions)
 
-    // ImageCropper
+    // com.mr0xf00.easycrop.ImageCropper r
+    implementation(libs.easycrop)
     implementation(libs.android.image.cropper)
 
-    implementation(libs.easycrop)
+
+    // To recognize Korean script
+    implementation(libs.text.recognition.korean)
 }

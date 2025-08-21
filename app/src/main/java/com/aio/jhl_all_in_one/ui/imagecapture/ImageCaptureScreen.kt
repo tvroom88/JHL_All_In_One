@@ -3,27 +3,45 @@ package com.aio.jhl_all_in_one.ui.imagecapture
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.ImageDecoder
 import android.graphics.Matrix
+import android.net.Uri
+import android.provider.MediaStore
+import android.util.Log
 import android.view.Surface
+import androidx.activity.compose.ManagedActivityResultLauncher
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -40,21 +58,33 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.canhub.cropper.CropImageContract
+import com.canhub.cropper.CropImageContractOptions
+import com.canhub.cropper.CropImageOptions
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.shouldShowRationale
 import java.io.File
 
+/**
+ * 순서 :
+ * (1) 카메라 -> (2) crop -> (3) 사진 확인 -> (4) mlkit
+ */
+
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
-fun ImageCaptureScreen() {
-    var capturedBitmap by remember { mutableStateOf<Bitmap?>(null) }
-
+fun ImageCaptureScreen(viewModel: ImageCaptureScreenViewModel = viewModel()) {
     // Accompanist 권한 상태
     val cameraPermissionState = rememberPermissionState(android.Manifest.permission.CAMERA)
+
+    var galleryLauncher: ManagedActivityResultLauncher<String, Uri?> ?= null
+
+    val mContext = LocalContext.current
 
     // 권한 요청 시작
     LaunchedEffect(Unit) {
@@ -63,20 +93,83 @@ fun ImageCaptureScreen() {
         }
     }
 
+    fun initSettings() {
+        viewModel.capturedBitmap = null
+        viewModel.croppedBitmap = null
+        viewModel.capturedBitmapUri = null
+        viewModel.textFromOcr = null
+    }
+
     when {
         cameraPermissionState.status.isGranted -> {
             // 권한 있음 → 기존 로직
-            if (capturedBitmap == null) {
-                Camera(
-                    onPhotoCaptured = { bitmap ->
-                        capturedBitmap = bitmap
+            if (viewModel.chooseGetPictureMode == null) {
+                chooseGetPictureScreen(pictureSource = { source ->
+                    viewModel.chooseGetPictureMode = source
+                })
+            } else if (viewModel.capturedBitmap == null) {
+
+                if (viewModel.chooseGetPictureMode == PictureSource.GALLERY) {
+                    if(viewModel.chooseGetPictureMode == PictureSource.GALLERY){
+                        galleryLauncher = rememberLauncherForActivityResult(
+                            contract = ActivityResultContracts.GetContent()
+                        ) { uri: Uri? ->
+                            uri?.let {
+                                viewModel.capturedBitmapUri = it
+                                viewModel.capturedBitmap = MediaStore.Images.Media.getBitmap(mContext.contentResolver, it)
+                            }
+                        }
+                    }
+                    LaunchedEffect(Unit) {
+                        galleryLauncher?.launch("image/*")
+                    }
+
+                } else if (viewModel.chooseGetPictureMode == PictureSource.CAMERA) {
+                    Camera(
+                        onPhotoCaptured = { bitmap, uri ->
+                            viewModel.capturedBitmap = bitmap
+                            viewModel.capturedBitmapUri = uri
+                        }
+                    )
+                }
+
+            } else if (viewModel.croppedBitmap == null) {
+                ImageCropperScreen(
+                    capturedBitmapUri = viewModel.capturedBitmapUri,
+                    onCropCaptureSuccess = { tempCroppedBitmap ->
+                        viewModel.croppedBitmap = tempCroppedBitmap
+                    },
+                    onCropCaptureFail = {
+                        initSettings()
+                    }
+                )
+            } else if (viewModel.textFromOcr == null) {
+                // 크롭 완료 후 이미지 화면 표시
+                ShowImageScreen(
+                    bitmap = viewModel.croppedBitmap!!,
+                    onRetake = {
+                        initSettings()
+                    },
+                    onConfirm = {
+                        Log.d("ImageCaptureScreenViewModel", "HereHereHere")
+                        viewModel.croppedBitmap?.let {
+                            Log.d("ImageCaptureScreenViewModel", "HereHereHere - inside")
+                            viewModel.ocrFromImage(
+                                croppedBitmap = it,
+                                result = { res -> viewModel.textFromOcr = res }
+                            )
+                        }
                     }
                 )
             } else {
-                ShowImageScreen(
-                    bitmap = capturedBitmap!!,
-                    onRetake = { capturedBitmap = null }
-                )
+                viewModel.textFromOcr?.let {
+                    ResultScreen(
+                        text = it,
+                        onChange = { changedTxt -> viewModel.textFromOcr = changedTxt },
+                        onBack = { initSettings() },
+                        onSave = {}
+                    )
+                }
             }
         }
 
@@ -96,16 +189,41 @@ fun ImageCaptureScreen() {
     }
 }
 
+@Composable
+fun chooseGetPictureScreen(pictureSource: (PictureSource) -> Unit) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier.align(Alignment.Center),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Button(
+                onClick = { pictureSource(PictureSource.GALLERY) },
+                modifier = Modifier.size(width = 120.dp, height = 50.dp) // 고정 크기
+            ) {
+                Text("사진 선택")
+            }
+
+            Button(
+                onClick = { pictureSource(PictureSource.CAMERA) },
+                modifier = Modifier.size(width = 120.dp, height = 50.dp)
+            ) {
+                Text("카메라")
+            }
+        }
+    }
+}
+
 /**
  * 카메라 프리뷰 화면을 보여주고, 촬영 버튼을 통해 사진을 캡처하는 Composable
  *
  * @param onPhotoCaptured 캡처된 사진(Bitmap)을 외부로 전달하는 콜백
  */
 @Composable
-fun Camera(onPhotoCaptured: (Bitmap) -> Unit){
+fun Camera(onPhotoCaptured: (Bitmap, Uri) -> Unit) {
 
     val context = LocalContext.current // context: 안드로이드 시스템 Context (카메라 Provider 실행 시 필요)
-    val lifecycleOwner = LocalLifecycleOwner.current // lifecycleOwner: 카메라가 Activity/Fragment 라이프사이클에 맞춰 동작하도록 연결
+    val lifecycleOwner =
+        LocalLifecycleOwner.current // lifecycleOwner: 카메라가 Activity/Fragment 라이프사이클에 맞춰 동작하도록 연결
 
     // 사진 촬영용 CameraX UseCase (미리보기와 함께 바인딩)
     val imageCapture = ImageCapture.Builder()
@@ -158,7 +276,7 @@ fun Camera(onPhotoCaptured: (Bitmap) -> Unit){
 private fun takePhoto(
     context: Context,
     imageCapture: ImageCapture,
-    onPhotoCaptured: (Bitmap) -> Unit
+    onPhotoCaptured: (Bitmap, Uri) -> Unit
 ) {
     val executor = ContextCompat.getMainExecutor(context)
 
@@ -202,13 +320,21 @@ private fun takePhoto(
                     // 회전 보정 (Matrix scale=false로 원본 크기 유지)
                     val rotatedBitmap = if (rotation != 0f) {
                         val matrix = Matrix().apply { postRotate(rotation) }
-                        Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, false)
+                        Bitmap.createBitmap(
+                            bitmap,
+                            0,
+                            0,
+                            bitmap.width,
+                            bitmap.height,
+                            matrix,
+                            false
+                        )
                     } else {
                         bitmap
                     }
 
                     // 콜백 전달
-                    onPhotoCaptured(rotatedBitmap)
+                    onPhotoCaptured(rotatedBitmap, file.toUri())
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
@@ -227,8 +353,6 @@ fun CameraPreview(
     lifecycleOwner: LifecycleOwner,
     imageCapture: ImageCapture
 ) {
-    val context = LocalContext.current
-
     AndroidView(
         modifier = modifier,
         factory = { ctx ->
@@ -263,13 +387,56 @@ fun CameraPreview(
 }
 
 @Composable
-fun ShowImageScreen(bitmap: Bitmap, onRetake: () -> Unit) {
+fun ImageCropperScreen(
+    capturedBitmapUri: Uri?,
+    onCropCaptureSuccess: (Bitmap) -> Unit,
+    onCropCaptureFail: () -> Unit
+) {
+    val context = LocalContext.current
+    var imageUri by remember {
+        mutableStateOf<Uri?>(null)
+    }
+    val imageCropLauncher = rememberLauncherForActivityResult(CropImageContract()) { result ->
+        if (result.isSuccessful) {
+            // use the cropped image
+            imageUri = result.uriContent
+
+            imageUri?.let {
+                val source = ImageDecoder.createSource(context.contentResolver, it)
+                val tempBitmap = ImageDecoder.decodeBitmap(source)
+                onCropCaptureSuccess(tempBitmap)
+            }
+
+            if (imageUri == null) {
+                Log.d("CheckCheckCheck", "imageUri is null")
+            } else {
+                Log.d("CheckCheckCheck", "imageUri : $imageUri")
+            }
+
+        } else {
+            val exception = result.error
+            Log.d("CheckCheckCheck", "exception = result : $exception =")
+            onCropCaptureFail()
+        }
+    }
+
+    // Composition 끝난 뒤 실행
+    LaunchedEffect(capturedBitmapUri) {
+        capturedBitmapUri?.let {
+            val cropOptions = CropImageContractOptions(it, CropImageOptions())
+            imageCropLauncher.launch(cropOptions)
+        }
+    }
+}
+
+@Composable
+fun ShowImageScreen(bitmap: Bitmap, onRetake: () -> Unit, onConfirm: () -> Unit) {
     Box(modifier = Modifier.fillMaxSize()) {
         Image(
             bitmap = bitmap.asImageBitmap(),
             contentDescription = "Captured Image",
             modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop
+            contentScale = ContentScale.Fit
         )
 
         // 다시 찍기 버튼
@@ -286,5 +453,93 @@ fun ShowImageScreen(bitmap: Bitmap, onRetake: () -> Unit) {
                 tint = Color.White
             )
         }
+
+        // 다시 찍기 버튼
+        IconButton(
+            onClick = onConfirm,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(16.dp)
+                .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = "Confirm",
+                tint = Color.White
+            )
+        }
     }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun ResultScreen(
+    text: String,
+    onChange: (String) -> Unit,
+    onBack: () -> Unit,
+    onSave: () -> Unit
+) {
+    var isEditing by remember { mutableStateOf(false) }
+    var value by remember { mutableStateOf(text) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        // OCR 결과 영역
+        if (isEditing) {
+            Column(modifier = Modifier.weight(1f)) {
+                TextField(
+                    value = value,
+                    onValueChange = { value = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    singleLine = false,
+                    maxLines = Int.MAX_VALUE
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Button(
+                    onClick = {
+                        onChange(value)
+                        isEditing = false
+                    },
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text("확인")
+                }
+            }
+        } else {
+            Text(
+                text = value,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .combinedClickable(
+                        onClick = { /* 필요시 처리 */ },
+                        onLongClick = { isEditing = true }
+                    )
+            )
+        }
+
+        // 하단 되돌아가기 버튼
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Row(modifier = Modifier.align(Alignment.CenterHorizontally)) {
+            Button(onClick = onBack) {
+                Text("되돌아가기")
+            }
+            Button(onClick = onSave) {
+                Text("저장")
+            }
+        }
+    }
+}
+
+enum class PictureSource {
+    GALLERY,
+    CAMERA
 }

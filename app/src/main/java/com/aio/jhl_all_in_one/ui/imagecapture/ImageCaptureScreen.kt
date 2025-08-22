@@ -9,6 +9,7 @@ import android.net.Uri
 import android.provider.MediaStore
 import android.util.Log
 import android.view.Surface
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -21,19 +22,23 @@ import androidx.camera.view.PreviewView
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Search
@@ -42,6 +47,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -55,6 +61,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -62,9 +69,11 @@ import androidx.core.net.toUri
 import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.aio.jhl_all_in_one.data.MemorableData
 import com.canhub.cropper.CropImageContract
 import com.canhub.cropper.CropImageContractOptions
 import com.canhub.cropper.CropImageOptions
+import com.canhub.cropper.CropImageView
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
@@ -82,7 +91,7 @@ fun ImageCaptureScreen(viewModel: ImageCaptureScreenViewModel = viewModel()) {
     // Accompanist 권한 상태
     val cameraPermissionState = rememberPermissionState(android.Manifest.permission.CAMERA)
 
-    var galleryLauncher: ManagedActivityResultLauncher<String, Uri?> ?= null
+    var galleryLauncher: ManagedActivityResultLauncher<String, Uri?>? = null
 
     val mContext = LocalContext.current
 
@@ -98,30 +107,44 @@ fun ImageCaptureScreen(viewModel: ImageCaptureScreenViewModel = viewModel()) {
         viewModel.croppedBitmap = null
         viewModel.capturedBitmapUri = null
         viewModel.textFromOcr = null
+        viewModel.chooseGetPictureMode = null
     }
 
     when {
         cameraPermissionState.status.isGranted -> {
             // 권한 있음 → 기존 로직
-            if (viewModel.chooseGetPictureMode == null) {
-                chooseGetPictureScreen(pictureSource = { source ->
-                    viewModel.chooseGetPictureMode = source
-                })
-            } else if (viewModel.capturedBitmap == null) {
 
+            if (!viewModel.goToChoosePictureSource) {
+                ResultScreen(
+                    viewModel = viewModel,
+                    goToOcr = { mode ->
+                        viewModel.goToChoosePictureSource = true
+                        viewModel.currentMode = mode
+                    },
+                    onChange = { changedTxt -> viewModel.textFromOcr = changedTxt },
+                    onBack = { initSettings() },
+                    onSaveInLocal = {},
+                    onSaveInRemote = { memorableData -> viewModel.sendDataToServer(memorableData) }
+                )
+            } else if (viewModel.chooseGetPictureMode == null) {
+                chooseGetPictureScreen(
+                    pictureSource = { source -> viewModel.chooseGetPictureMode = source },
+                    onBack = { viewModel.goToChoosePictureSource = false }
+                )
+            } else if (viewModel.capturedBitmap == null) {
                 if (viewModel.chooseGetPictureMode == PictureSource.GALLERY) {
-                    if(viewModel.chooseGetPictureMode == PictureSource.GALLERY){
-                        galleryLauncher = rememberLauncherForActivityResult(
-                            contract = ActivityResultContracts.GetContent()
-                        ) { uri: Uri? ->
-                            uri?.let {
-                                viewModel.capturedBitmapUri = it
-                                viewModel.capturedBitmap = MediaStore.Images.Media.getBitmap(mContext.contentResolver, it)
-                            }
+
+                    galleryLauncher = rememberLauncherForActivityResult(
+                        contract = ActivityResultContracts.GetContent()
+                    ) { uri: Uri? ->
+                        uri?.let {
+                            viewModel.capturedBitmapUri = it
+                            viewModel.capturedBitmap =
+                                MediaStore.Images.Media.getBitmap(mContext.contentResolver, it)
                         }
                     }
                     LaunchedEffect(Unit) {
-                        galleryLauncher?.launch("image/*")
+                        galleryLauncher.launch("image/*")
                     }
 
                 } else if (viewModel.chooseGetPictureMode == PictureSource.CAMERA) {
@@ -156,20 +179,30 @@ fun ImageCaptureScreen(viewModel: ImageCaptureScreenViewModel = viewModel()) {
                             Log.d("ImageCaptureScreenViewModel", "HereHereHere - inside")
                             viewModel.ocrFromImage(
                                 croppedBitmap = it,
-                                result = { res -> viewModel.textFromOcr = res }
+                                result = { res ->
+                                    when (viewModel.currentMode) {
+                                        CurrentMode.SENTENCE -> viewModel.sentence = res
+                                        CurrentMode.BOOK -> viewModel.book = res
+                                        CurrentMode.AUTHOR -> viewModel.author = res
+                                        else -> viewModel.page = res
+                                    }
+                                }
                             )
+                            viewModel.goToChoosePictureSource = false
+                            initSettings()
                         }
                     }
                 )
             } else {
-                viewModel.textFromOcr?.let {
-                    ResultScreen(
-                        text = it,
-                        onChange = { changedTxt -> viewModel.textFromOcr = changedTxt },
-                        onBack = { initSettings() },
-                        onSave = {}
-                    )
-                }
+//                viewModel.textFromOcr?.let {
+//                    ResultScreen(
+//                        text = it,
+//                        onChange = { changedTxt -> viewModel.textFromOcr = changedTxt },
+//                        onBack = { initSettings() },
+//                        onSaveInLocal = {},
+//                        onSaveInRemote = { memorableData -> viewModel.sendDataToServer(memorableData) }
+//                    )
+//                }
             }
         }
 
@@ -190,7 +223,10 @@ fun ImageCaptureScreen(viewModel: ImageCaptureScreenViewModel = viewModel()) {
 }
 
 @Composable
-fun chooseGetPictureScreen(pictureSource: (PictureSource) -> Unit) {
+fun chooseGetPictureScreen(pictureSource: (PictureSource) -> Unit, onBack: () -> Unit) {
+    BackHandler {
+        onBack()
+    }
     Box(modifier = Modifier.fillMaxSize()) {
         Row(
             modifier = Modifier.align(Alignment.Center),
@@ -228,7 +264,7 @@ fun Camera(onPhotoCaptured: (Bitmap, Uri) -> Unit) {
     // 사진 촬영용 CameraX UseCase (미리보기와 함께 바인딩)
     val imageCapture = ImageCapture.Builder()
         .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
-        .setTargetRotation(context.display?.rotation ?: Surface.ROTATION_0)
+        .setTargetRotation(context.display.rotation)
         .build()
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -415,7 +451,7 @@ fun ImageCropperScreen(
 
         } else {
             val exception = result.error
-            Log.d("CheckCheckCheck", "exception = result : $exception =")
+            Log.d("CheckCheckCheck", "exception = result : $exception")
             onCropCaptureFail()
         }
     }
@@ -423,7 +459,14 @@ fun ImageCropperScreen(
     // Composition 끝난 뒤 실행
     LaunchedEffect(capturedBitmapUri) {
         capturedBitmapUri?.let {
-            val cropOptions = CropImageContractOptions(it, CropImageOptions())
+            val options = CropImageOptions().apply {
+                // 크롭 박스 가이드라인 보이기
+                guidelines = CropImageView.Guidelines.ON
+
+                // 크롭 박스 초기 위치 비율 (0f ~ 1f)
+                initialCropWindowPaddingRatio = 0.1f // 위아래 여백을 조금 두도록
+            }
+            val cropOptions = CropImageContractOptions(it, options)
             imageCropLauncher.launch(cropOptions)
         }
     }
@@ -454,7 +497,7 @@ fun ShowImageScreen(bitmap: Bitmap, onRetake: () -> Unit, onConfirm: () -> Unit)
             )
         }
 
-        // 다시 찍기 버튼
+        // 확인 버튼
         IconButton(
             onClick = onConfirm,
             modifier = Modifier
@@ -474,13 +517,22 @@ fun ShowImageScreen(bitmap: Bitmap, onRetake: () -> Unit, onConfirm: () -> Unit)
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ResultScreen(
-    text: String,
+    viewModel: ImageCaptureScreenViewModel,
+    goToOcr: (CurrentMode) -> Unit,
     onChange: (String) -> Unit,
     onBack: () -> Unit,
-    onSave: () -> Unit
+    onSaveInLocal: () -> Unit,
+    onSaveInRemote: (MemorableData) -> Unit
 ) {
     var isEditing by remember { mutableStateOf(false) }
-    var value by remember { mutableStateOf(text) }
+    var isTitleEditing by remember { mutableStateOf(false) }
+    var isAuthorEditing by remember { mutableStateOf(false) }
+    var isPageEditing by remember { mutableStateOf(false) }
+
+//    var sentence by remember { mutableStateOf(text) }
+//    var book by remember { mutableStateOf("") }
+//    var author by remember { mutableStateOf("") }
+//    var page by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier
@@ -488,41 +540,273 @@ fun ResultScreen(
             .padding(16.dp)
     ) {
         // OCR 결과 영역
-        if (isEditing) {
-            Column(modifier = Modifier.weight(1f)) {
-                TextField(
-                    value = value,
-                    onValueChange = { value = it },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    singleLine = false,
-                    maxLines = Int.MAX_VALUE
+
+        Column(modifier = Modifier.weight(1f)) {
+            Row(
+                modifier = Modifier
+                    .weight(2f)
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
+                    .border(
+                        width = 1.dp,
+                        color = Color.Gray, // 테두리 색상
+                        shape = RoundedCornerShape(8.dp) // 모서리 둥글기
+                    ),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "문장",
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                VerticalDivider(
+                    modifier = Modifier
+                        .fillMaxHeight() // Row 높이에 맞춰서 세로선 표시
+                        .padding(horizontal = 4.dp),
+                    thickness = 1.dp,
+                    color = Color.LightGray
+                )
 
-                Button(
-                    onClick = {
-                        onChange(value)
-                        isEditing = false
-                    },
-                    modifier = Modifier.align(Alignment.End)
+                if (isEditing) {
+                    TextField(
+                        value = viewModel.sentence,
+                        onValueChange = { viewModel.sentence = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(5f),
+                        singleLine = false,
+                        maxLines = Int.MAX_VALUE
+                    )
+                } else {
+                    Text(
+                        text = viewModel.sentence,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(5f)
+                            .combinedClickable(
+                                onClick = { /* 필요시 처리 */ },
+                                onLongClick = { isEditing = true }
+                            )
+                    )
+                }
+
+                // 오른쪽 끝 물음표 아이콘
+                IconButton(
+                    onClick = { goToOcr(CurrentMode.SENTENCE) },
+                    modifier = Modifier.size(24.dp) // 아이콘 크기 조절 가능
                 ) {
-                    Text("확인")
+                    Icon(
+                        imageVector = Icons.Default.Add, // 기본 물음표 아이콘
+                        contentDescription = "도움말",
+                        tint = Color.Gray
+                    )
                 }
             }
-        } else {
-            Text(
-                text = value,
+
+            Row(
                 modifier = Modifier
+                    .weight(2f)
                     .fillMaxWidth()
-                    .weight(1f)
-                    .combinedClickable(
-                        onClick = { /* 필요시 처리 */ },
-                        onLongClick = { isEditing = true }
+                    .padding(vertical = 4.dp)
+                    .border(
+                        width = 1.dp,
+                        color = Color.Gray, // 테두리 색상
+                        shape = RoundedCornerShape(8.dp) // 모서리 둥글기
+                    ),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+
+                Text(
+                    text = "책 이름",
+                    modifier = Modifier.weight(1f),
+                    // 텍스트 자체 중앙 정렬
+                    textAlign = TextAlign.Center
+                )
+
+                VerticalDivider(
+                    modifier = Modifier
+                        .fillMaxHeight() // Row 높이에 맞춰서 세로선 표시
+                        .padding(horizontal = 4.dp),
+                    thickness = 1.dp,
+                    color = Color.LightGray
+                )
+
+                if (isTitleEditing) {
+                    TextField(
+                        value = viewModel.book,
+                        onValueChange = { viewModel.book = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(5f),
+                        singleLine = false,
+                        maxLines = Int.MAX_VALUE
                     )
-            )
+                } else {
+                    Text(
+                        text = viewModel.book,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(5f)
+                            .combinedClickable(
+                                onClick = { /* 필요시 처리 */ },
+                                onLongClick = { isTitleEditing = true }
+                            )
+                    )
+                }
+                // 오른쪽 끝 물음표 아이콘
+                IconButton(
+                    onClick = { goToOcr(CurrentMode.BOOK) },
+                    modifier = Modifier.size(24.dp) // 아이콘 크기 조절 가능
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add, // 기본 물음표 아이콘
+                        contentDescription = "도움말",
+                        tint = Color.Gray
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier
+                    .weight(2f)
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
+                    .border(
+                        width = 1.dp,
+                        color = Color.Gray, // 테두리 색상
+                        shape = RoundedCornerShape(8.dp) // 모서리 둥글기
+                    ),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+
+                Text(
+                    text = "저자",
+                    modifier = Modifier.weight(1f),
+                    // 텍스트 자체 중앙 정렬
+                    textAlign = TextAlign.Center
+                )
+
+                VerticalDivider(
+                    modifier = Modifier
+                        .fillMaxHeight() // Row 높이에 맞춰서 세로선 표시
+                        .padding(horizontal = 4.dp),
+                    thickness = 1.dp,
+                    color = Color.LightGray
+                )
+
+
+                if (isAuthorEditing) {
+                    TextField(
+                        value = viewModel.author,
+                        onValueChange = { viewModel.author = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(5f),
+                        singleLine = false,
+                        maxLines = Int.MAX_VALUE
+                    )
+                } else {
+                    Text(
+                        text = viewModel.author,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(5f)
+                            .combinedClickable(
+                                onClick = { /* 필요시 처리 */ },
+                                onLongClick = { isAuthorEditing = true }
+                            )
+                    )
+                }
+
+                IconButton(
+                    onClick = { goToOcr(CurrentMode.AUTHOR) },
+                    modifier = Modifier.size(24.dp) // 아이콘 크기 조절 가능
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add, // 기본 물음표 아이콘
+                        contentDescription = "도움말",
+                        tint = Color.Gray
+                    )
+                }
+            }
+            Row(
+                modifier = Modifier
+                    .weight(2f)
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
+                    .border(
+                        width = 1.dp,
+                        color = Color.Gray, // 테두리 색상
+                        shape = RoundedCornerShape(8.dp) // 모서리 둥글기
+                    ),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+
+                Text(
+                    text = "페이지",
+                    modifier = Modifier.weight(1f),
+                    // 텍스트 자체 중앙 정렬
+                    textAlign = TextAlign.Center
+                )
+
+                VerticalDivider(
+                    modifier = Modifier
+                        .fillMaxHeight() // Row 높이에 맞춰서 세로선 표시
+                        .padding(horizontal = 4.dp),
+                    thickness = 1.dp,
+                    color = Color.LightGray
+                )
+
+                if (isPageEditing) {
+                    TextField(
+                        value = viewModel.page,
+                        onValueChange = { viewModel.page = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(5f),
+                        singleLine = false,
+                        maxLines = Int.MAX_VALUE
+                    )
+                } else {
+                    Text(
+                        text = viewModel.page,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(5f)
+                            .combinedClickable(
+                                onClick = { /* 필요시 처리 */ },
+                                onLongClick = { isPageEditing = true }
+                            )
+                    )
+                }
+
+                IconButton(
+                    onClick = { goToOcr(CurrentMode.PAGE) },
+                    modifier = Modifier.size(24.dp) // 아이콘 크기 조절 가능
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add, // 기본 물음표 아이콘
+                        contentDescription = "도움말",
+                        tint = Color.Gray
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Button(
+                onClick = {
+                    onChange(viewModel.sentence)
+                    isEditing = false
+                    isTitleEditing = false
+                    isAuthorEditing = false
+                    isPageEditing = false
+                },
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Text("확인")
+            }
         }
 
         // 하단 되돌아가기 버튼
@@ -532,8 +816,22 @@ fun ResultScreen(
             Button(onClick = onBack) {
                 Text("되돌아가기")
             }
-            Button(onClick = onSave) {
-                Text("저장")
+            Button(onClick = onSaveInLocal) { // DB에 저장
+                Text("로컬에 저장")
+            }
+            Button(
+                onClick = {
+                    onSaveInRemote(
+                        MemorableData(
+                            bookName = viewModel.book,
+                            author = viewModel.author,
+                            sentence = viewModel.sentence,
+                            page = viewModel.page
+                        )
+                    )
+                }
+            ) { // Firebase에 저장
+                Text("서버에 저장")
             }
         }
     }
@@ -542,4 +840,11 @@ fun ResultScreen(
 enum class PictureSource {
     GALLERY,
     CAMERA
+}
+
+enum class CurrentMode {
+    SENTENCE,
+    BOOK,
+    AUTHOR,
+    PAGE
 }

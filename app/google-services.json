@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "684423907560",
+    "project_id": "jhl-all-in-one-9f161",
+    "storage_bucket": "jhl-all-in-one-9f161.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:684423907560:android:31f294683ec09ee21ba15d",
+        "android_client_info": {
+          "package_name": "com.aio.jhl_all_in_one"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyABu2NmTEl5GxX0g5jaOAYvBLQLew4MEG0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

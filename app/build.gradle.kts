@@ -1,7 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
-//    alias(libs.plugins.google.services)   // <- 추가
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -73,7 +73,6 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.exifinterface)
 
-
     debugImplementation(libs.androidx.ui.tooling)
 
     // Compose testing
@@ -123,7 +122,14 @@ dependencies {
     implementation(libs.easycrop)
     implementation(libs.android.image.cropper)
 
-
     // To recognize Korean script
     implementation(libs.text.recognition.korean)
+
+    // Import the Firebase BoM
+    // Firebase BOM (버전만 여기서 관리)
+    implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
+
+    // Firestore + KTX
+    implementation("com.google.firebase:firebase-firestore-ktx")
+    implementation("com.google.firebase:firebase-database-ktx")
 }

@@ -37,6 +37,7 @@ class FireStoreUtils {
                     val map = doc.data
                     map?.let {
                         MemorableData(
+                            id = doc.id,
                             bookName = it["bookName"] as? String ?: "",
                             author = it["author"] as? String ?: "",
                             sentence = it["sentence"] as? String ?: "",
@@ -50,4 +51,18 @@ class FireStoreUtils {
                 onError(exception)
             }
     }
+
+    fun deleteMemorableData(
+        id: String,
+        onSuccess: () -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        val db = FirebaseFirestore.getInstance()
+        db.collection(Const.FireBaseKeyWord.GoodSentenceFromBook)
+            .document(id)
+            .delete()
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { e -> onError(e) }
+    }
+
 }

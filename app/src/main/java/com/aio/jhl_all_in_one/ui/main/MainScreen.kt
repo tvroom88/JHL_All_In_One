@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import com.aio.jhl_all_in_one.data.AssetData
 import com.aio.jhl_all_in_one.ui.imagecapture.ImageCaptureScreen
 import com.aio.jhl_all_in_one.ui.portfolio.PortfolioScreen
+import com.aio.jhl_all_in_one.ui.visit.VisitGoodContentScreen
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
@@ -57,7 +58,7 @@ fun MainScreen() {
             when (selectedTab) {
                 0 -> PortfolioScreen()
                 1 -> ImageCaptureScreen()
-                2 -> Text("Profile Screen")
+                2 -> VisitGoodContentScreen()
             }
         }
     }

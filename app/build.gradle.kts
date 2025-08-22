@@ -132,4 +132,6 @@ dependencies {
     // Firestore + KTX
     implementation("com.google.firebase:firebase-firestore-ktx")
     implementation("com.google.firebase:firebase-database-ktx")
+
+    implementation("androidx.compose.material3:material3:1.2.0")
 }

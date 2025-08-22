@@ -812,13 +812,26 @@ fun ResultScreen(
         // 하단 되돌아가기 버튼
         Spacer(modifier = Modifier.height(16.dp))
 
-        Row(modifier = Modifier.align(Alignment.CenterHorizontally)) {
-            Button(onClick = onBack) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.CenterHorizontally),
+            horizontalArrangement = Arrangement.spacedBy(8.dp) // 버튼 사이 간격
+        ) {
+            Button(
+                onClick = onBack,
+                modifier = Modifier.weight(1f)
+            ) {
                 Text("되돌아가기")
             }
-            Button(onClick = onSaveInLocal) { // DB에 저장
+
+            Button(
+                onClick = onSaveInLocal,
+                modifier = Modifier.weight(1f)
+            ) {
                 Text("로컬에 저장")
             }
+
             Button(
                 onClick = {
                     onSaveInRemote(
@@ -829,8 +842,9 @@ fun ResultScreen(
                             page = viewModel.page
                         )
                     )
-                }
-            ) { // Firebase에 저장
+                },
+                modifier = Modifier.weight(1f)
+            ) {
                 Text("서버에 저장")
             }
         }

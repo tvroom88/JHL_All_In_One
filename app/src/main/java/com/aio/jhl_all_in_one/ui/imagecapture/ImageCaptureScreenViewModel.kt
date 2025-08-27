@@ -1,5 +1,6 @@
 package com.aio.jhl_all_in_one.ui.imagecapture
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
 import android.util.Log
@@ -8,13 +9,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.aio.jhl_all_in_one.Const
+import com.aio.jhl_all_in_one.data.BookData
 import com.aio.jhl_all_in_one.data.MemorableData
 import com.aio.jhl_all_in_one.utils.FireStoreUtils
+import com.aio.jhl_all_in_one.utils.RoomUtils
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.korean.KoreanTextRecognizerOptions
+import kotlinx.coroutines.launch
 import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -44,7 +49,7 @@ class ImageCaptureScreenViewModel : ViewModel() {
     var book by mutableStateOf<String>("")
     var author by mutableStateOf<String>("")
     var page by mutableStateOf<String>("")
-    
+
     val fireStoreUtils = FireStoreUtils()
 
     fun ocrFromImage(croppedBitmap: Bitmap, result: (String) -> Unit) {
@@ -74,7 +79,11 @@ class ImageCaptureScreenViewModel : ViewModel() {
     }
 
     fun sendDataToServer(data: MemorableData) {
-        fireStoreUtils.saveDataToFirebase(Const.FireBaseKeyWord.GoodSentenceFromBook, getTimeData(), data)
+        fireStoreUtils.saveDataToFirebase(
+            Const.FireBaseKeyWord.GoodSentenceFromBook,
+            getTimeData(),
+            data
+        )
     }
 
     fun getTimeData(): String {
@@ -83,5 +92,11 @@ class ImageCaptureScreenViewModel : ViewModel() {
         val formattedDate = sdf.format(currentDate)
 
         return formattedDate
+    }
+
+    fun addBook(book: BookData, context: Context) {
+        viewModelScope.launch {
+            RoomUtils(context).insert(book)
+        }
     }
 }

@@ -34,11 +34,6 @@ import com.aio.jhl_all_in_one.ui.visit.VisitGoodContentScreen
 fun MainScreen() {
     var selectedTab by remember { mutableIntStateOf(0) }
     val items = listOf("Portfolio", "Search", "Profile")
-    val tempAssetData = listOf(
-        AssetData("1", "1", 1),
-        AssetData("2", "2", 2),
-        AssetData("3", "3", 3)
-    )
 
     Scaffold(
         topBar = { JhlTopAppBarScreen() },

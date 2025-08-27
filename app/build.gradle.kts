@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
     id("com.google.gms.google-services")
+    id("kotlin-kapt")
 }
 
 android {
@@ -134,4 +135,10 @@ dependencies {
     implementation("com.google.firebase:firebase-database-ktx")
 
     implementation("androidx.compose.material3:material3:1.2.0")
+
+    // Room Database
+    val room_version = "2.6.1" // 2025년 현재 최신 안정 버전
+    implementation("androidx.room:room-runtime:$room_version")
+    kapt("androidx.room:room-compiler:$room_version") // annotation processor
+    implementation("androidx.room:room-ktx:$room_version") // 코루틴 지원
 }

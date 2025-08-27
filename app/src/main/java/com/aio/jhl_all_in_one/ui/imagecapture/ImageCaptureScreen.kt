@@ -69,7 +69,9 @@ import androidx.core.net.toUri
 import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.aio.jhl_all_in_one.data.BookData
 import com.aio.jhl_all_in_one.data.MemorableData
+import com.aio.jhl_all_in_one.utils.RoomUtils
 import com.canhub.cropper.CropImageContract
 import com.canhub.cropper.CropImageContractOptions
 import com.canhub.cropper.CropImageOptions
@@ -123,7 +125,7 @@ fun ImageCaptureScreen(viewModel: ImageCaptureScreenViewModel = viewModel()) {
                     },
                     onChange = { changedTxt -> viewModel.textFromOcr = changedTxt },
                     onBack = { initSettings() },
-                    onSaveInLocal = {},
+                    onSaveInLocal = { viewModel.addBook(it, mContext) },
                     onSaveInRemote = { memorableData -> viewModel.sendDataToServer(memorableData) }
                 )
             } else if (viewModel.chooseGetPictureMode == null) {
@@ -521,7 +523,7 @@ fun ResultScreen(
     goToOcr: (CurrentMode) -> Unit,
     onChange: (String) -> Unit,
     onBack: () -> Unit,
-    onSaveInLocal: () -> Unit,
+    onSaveInLocal: (BookData) -> Unit,
     onSaveInRemote: (MemorableData) -> Unit
 ) {
     var isEditing by remember { mutableStateOf(false) }
@@ -826,7 +828,7 @@ fun ResultScreen(
             }
 
             Button(
-                onClick = onSaveInLocal,
+                onClick = { onSaveInLocal(BookData(title = viewModel.book)) },
                 modifier = Modifier.weight(1f)
             ) {
                 Text("로컬에 저장")

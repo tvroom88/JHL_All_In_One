@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -22,9 +23,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.aio.jhl_all_in_one.data.AssetData
+import com.aio.jhl_all_in_one.R
 import com.aio.jhl_all_in_one.ui.imagecapture.ImageCaptureScreen
 import com.aio.jhl_all_in_one.ui.portfolio.PortfolioScreen
 import com.aio.jhl_all_in_one.ui.visit.VisitGoodContentScreen
@@ -33,7 +35,7 @@ import com.aio.jhl_all_in_one.ui.visit.VisitGoodContentScreen
 @Composable
 fun MainScreen() {
     var selectedTab by remember { mutableIntStateOf(0) }
-    val items = listOf("Portfolio", "Search", "Profile")
+    val items = listOf("Portfolio", "Capture", "List")
 
     Scaffold(
         topBar = { JhlTopAppBarScreen() },
@@ -68,7 +70,7 @@ fun JhlTopAppBarScreen() {
             modifier = Modifier.height(65.dp) // 높이를 조절 가능
         )
         HorizontalDivider(
-            thickness = 0.3.dp,      // 두께
+            thickness = 0.3.dp, // 두께
             color = Color.Gray  // 밑줄 색
         )
     }
@@ -85,7 +87,31 @@ fun JhlBottomNavigation(
             NavigationBarItem(
                 selected = selectedTab == index,
                 onClick = { onTabSelected(index) },
-                icon = { Icon(Icons.Default.Home, contentDescription = item) }, // 아이콘은 상황에 맞게 교체
+                icon = {
+                    when (index) {
+                        0 -> Icon(
+                            Icons.Default.Home,
+                            contentDescription = item,
+                            modifier = Modifier.size(30.dp)
+                        )
+
+                        1 -> Icon(
+                            painter = painterResource(id = R.drawable.capture),
+                            contentDescription = item,
+                            tint = Color.Unspecified,
+                            modifier = Modifier.size(30.dp)
+                        )
+
+                        2 -> Icon(
+                            painter = painterResource(id = R.drawable.list),
+                            contentDescription = item,
+                            tint = Color.Unspecified,
+                            modifier = Modifier.size(30.dp)
+                        )
+
+                        else -> Icon(Icons.Default.Home, contentDescription = item)
+                    }
+                },// 아이콘은 상황에 맞게 교체
                 label = { Text(item) }
             )
         }

@@ -20,6 +20,15 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        javaCompileOptions {
+            annotationProcessorOptions {
+                arguments += mapOf(
+                    "room.schemaLocation" to "$projectDir/schemas", // 스키마 JSON 저장 경로
+                    "room.incremental" to "true"                  // incremental processing
+                )
+            }
+        }
     }
 
     buildTypes {

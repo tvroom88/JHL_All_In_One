@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -531,11 +532,6 @@ fun ResultScreen(
     var isAuthorEditing by remember { mutableStateOf(false) }
     var isPageEditing by remember { mutableStateOf(false) }
 
-//    var sentence by remember { mutableStateOf(text) }
-//    var book by remember { mutableStateOf("") }
-//    var author by remember { mutableStateOf("") }
-//    var page by remember { mutableStateOf("") }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -552,7 +548,7 @@ fun ResultScreen(
                     .border(
                         width = 1.dp,
                         color = Color.Gray, // 테두리 색상
-                        shape = RoundedCornerShape(8.dp) // 모서리 둥글기
+                        shape = RoundedCornerShape(1.dp) // 모서리 둥글기
                     ),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -586,6 +582,7 @@ fun ResultScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(5f)
+                            .heightIn(min = 56.dp)
                             .combinedClickable(
                                 onClick = { /* 필요시 처리 */ },
                                 onLongClick = { isEditing = true }
@@ -650,6 +647,7 @@ fun ResultScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(5f)
+                            .heightIn(min = 56.dp)
                             .combinedClickable(
                                 onClick = { /* 필요시 처리 */ },
                                 onLongClick = { isTitleEditing = true }
@@ -714,6 +712,7 @@ fun ResultScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(5f)
+                            .heightIn(min = 56.dp)
                             .combinedClickable(
                                 onClick = { /* 필요시 처리 */ },
                                 onLongClick = { isAuthorEditing = true }
@@ -776,6 +775,7 @@ fun ResultScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(5f)
+                            .heightIn(min = 56.dp)
                             .combinedClickable(
                                 onClick = { /* 필요시 처리 */ },
                                 onLongClick = { isPageEditing = true }
@@ -828,7 +828,7 @@ fun ResultScreen(
             }
 
             Button(
-                onClick = { onSaveInLocal(BookData(title = viewModel.book)) },
+                onClick = { onSaveInLocal(BookData(title = viewModel.book, author = viewModel.author)) },
                 modifier = Modifier.weight(1f)
             ) {
                 Text("로컬에 저장")
